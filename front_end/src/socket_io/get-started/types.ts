@@ -23,3 +23,12 @@ export type SocketIdWithUser = {
   socketId: string;
   user: User;
 };
+
+export type UserLeaveRoomType = {
+  message: string;
+  userData: SocketIdWithUser;
+};
+
+export type UserDataNorm = {
+  [key: string]: SocketIdWithUser;
+};

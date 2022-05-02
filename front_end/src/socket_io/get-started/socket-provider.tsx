@@ -1,7 +1,7 @@
 import React from "react";
 import { io, Socket } from "socket.io-client";
 import { DefaultEventsMap } from "@socket.io/component-emitter";
-import { MessagesWithUserType, User, SocketIdWithUser, OperationsTypes } from "./types";
+import { MessagesWithUserType, User, SocketIdWithUser, UserDataNorm } from "./types";
 
 enum SocketStartEvents {
   connect = "connect",
@@ -45,8 +45,8 @@ export const SocketContextWithData = React.createContext<{
   messages: MessagesWithUserType[];
   setMessages: React.Dispatch<React.SetStateAction<MessagesWithUserType[]>>;
 
-  usersWithSocketsIds: SocketIdWithUser[];
-  setUsersWithSocketsIds: React.Dispatch<React.SetStateAction<SocketIdWithUser[]>>;
+  usersNormData: UserDataNorm;
+  setUsersNormData: React.Dispatch<React.SetStateAction<UserDataNorm>>;
 
   currentUser: User | null;
   setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
@@ -63,7 +63,7 @@ export const SocketIOClientWithDataProvider = ({
   children?: React.ReactNode;
 }): JSX.Element => {
   const [messages, setMessages] = React.useState<MessagesWithUserType[]>([]);
-  const [usersWithSocketsIds, setUsersWithSocketsIds] = React.useState<SocketIdWithUser[]>([]);
+  const [usersNormData, setUsersNormData] = React.useState<UserDataNorm>({});
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [registeredHandlers, setRegisteredHandlers] = React.useState<string[]>([]);
 
@@ -79,8 +79,8 @@ export const SocketIOClientWithDataProvider = ({
     socketIoClient: client,
     messages,
     setMessages,
-    usersWithSocketsIds,
-    setUsersWithSocketsIds,
+    usersNormData,
+    setUsersNormData,
     currentUser,
     setCurrentUser,
     registeredHandlers,
