@@ -1,7 +1,13 @@
 import React from "react";
 import { useQueryClient } from "react-query";
 import { SocketContextWithData } from "./socket-provider";
-import { MessagesWithUserType, OperationsTypes, SocketIdWithUser, User } from "./types";
+import {
+  MessagesWithUserType,
+  OperationsTypes,
+  SocketIdWithUser,
+  UserDataNorm,
+  UserLeaveRoomType,
+} from "./types";
 
 // components that using the same hook does not share the same state!!!
 
@@ -26,54 +32,35 @@ export const useChatWithReactQuerySubscription = () => {
 
     socket?.on(OperationsTypes.chat_message_get, messageHandler);
 
-    function userEnterGetSentUsers({ users }: { users: Array<SocketIdWithUser> }) {
-      console.log("got data on user enter", users);
-      socketClientWithData.setUsersWithSocketsIds((prevUsers) => {
-        if (!prevUsers.length) {
-          return [...users];
-        } else if (users.length) {
-          type StateType = {
-            [key: string]: User;
-          };
-          const stateBuilder = (stateToBuild: StateType) => {
-            return (u: SocketIdWithUser) => {
-              stateToBuild[u.socketId] = u.user;
-            };
-          };
+    function userEnterGetSentUsers({ usersData }: { usersData: Array<SocketIdWithUser> }) {
+      console.log("got data on user enter", usersData);
 
-          const prevState: StateType = {};
-          const currentUpdate: StateType = {};
-
-          prevUsers.forEach(stateBuilder(prevState));
-          users.forEach(stateBuilder(currentUpdate));
-
-          const nextState = {
-            ...prevState,
-            ...currentUpdate,
-          };
-
-          const nextUserData = Object.entries(nextState).map(([key, val]) => ({
-            socketId: key,
-            user: val,
-          })) as SocketIdWithUser[];
-
-          return nextUserData;
-        }
-
-        return [...prevUsers];
-      });
+      const stateBuilder = (stateToBuild: UserDataNorm) => {
+        return (userData: SocketIdWithUser) => {
+          stateToBuild[userData.socketId] = userData;
+        };
+      };
+      const stateToSet: UserDataNorm = {};
+      usersData.forEach(stateBuilder(stateToSet));
+      socketClientWithData.setUsersNormData((prevUsersData) => ({
+        ...prevUsersData,
+        ...stateToSet,
+      }));
     }
 
     socket?.on(OperationsTypes.user_enter_send_users, userEnterGetSentUsers);
 
-    function userLeaveHandler(messageWithUser: MessagesWithUserType) {
-      const { user } = messageWithUser;
-      console.log("user", user.username, "leaves room");
-      updateMessages(messageWithUser);
+    function userLeaveHandler(userLeaveRoomData: UserLeaveRoomType) {
+      const { userData, message } = userLeaveRoomData;
 
-      socketClientWithData.setUsersWithSocketsIds((pUserData) =>
-        pUserData.filter((u) => u.user.id !== user.id)
-      );
+      console.log("user", userData.user.username, "leaves room");
+
+      updateMessages({ user: userData.user, message });
+
+      socketClientWithData.setUsersNormData((pUserData) => {
+        delete pUserData[userData.socketId];
+        return { ...pUserData };
+      });
     }
 
     socket?.on(OperationsTypes.user_leave, userLeaveHandler);
@@ -99,6 +86,12 @@ export const useChatWithReactQuerySubscription = () => {
   };
 
   const sendToGetUsersCallBack = React.useCallback(() => {
+    const { socket } = socketClientWithData.socketIoClient;
+
+    socket?.emit(OperationsTypes.user_enter_get_users);
+  }, [socketClientWithData.socketIoClient]);
+
+  const singOutCallBack = React.useCallback(() => {
     const { socket } = socketClientWithData.socketIoClient;
 
     socket?.emit(OperationsTypes.user_enter_get_users);

@@ -51,7 +51,7 @@ export default function ChatForm() {
     </StyledLi>
   ));
 
-  const renderedActiveUsers = chatData.usersWithSocketsIds.map((item, i) => (
+  const renderedActiveUsers = Object.values(chatData.usersNormData).map((item, i) => (
     <UserItemWithData key={item.user.id} item={item} />
   ));
 
