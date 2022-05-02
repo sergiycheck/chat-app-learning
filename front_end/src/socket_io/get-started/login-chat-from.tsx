@@ -13,7 +13,6 @@ export default function LoginChatForm() {
     socket?.emit(OperationsTypes.user_sign_in, { username }, (user: User) => {
       console.log("user got", user);
       socketClientWithData.setCurrentUser(user);
-      socketClientWithData.setUsers((prevUsers) => [...prevUsers, user]);
     });
   };
 

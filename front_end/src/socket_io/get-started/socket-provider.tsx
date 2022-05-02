@@ -1,11 +1,16 @@
 import React from "react";
 import { io, Socket } from "socket.io-client";
 import { DefaultEventsMap } from "@socket.io/component-emitter";
-import { MessagesWithUserType, User } from "./types";
+import { MessagesWithUserType, User, SocketIdWithUser, OperationsTypes } from "./types";
 
+enum SocketStartEvents {
+  connect = "connect",
+  disconnect = "disconnect",
+}
 export class SocketIOClient {
   url: string;
   public socket?: Socket<DefaultEventsMap, DefaultEventsMap>;
+  public mounted: Boolean = false;
 
   constructor(url: string) {
     this.url = url;
@@ -14,19 +19,22 @@ export class SocketIOClient {
   mount() {
     this.socket = io(this.url);
 
-    this.socket?.on("connect", () => {
+    this.socket?.on(SocketStartEvents.connect, () => {
       console.log("connected");
       console.log("socket.id", this.socket?.id);
+      this.mounted = true;
     });
 
-    this.socket?.on("disconnect", () => {
+    this.socket?.on(SocketStartEvents.disconnect, () => {
       console.log("disconnected");
-
       console.log("socket id", this.socket?.id); // undefined
+      this.mounted = false;
     });
   }
 
   unmount() {
+    this.socket?.off(SocketStartEvents.connect);
+    this.socket?.off(SocketStartEvents.disconnect);
     this.socket?.disconnect();
   }
 }
@@ -37,8 +45,8 @@ export const SocketContextWithData = React.createContext<{
   messages: MessagesWithUserType[];
   setMessages: React.Dispatch<React.SetStateAction<MessagesWithUserType[]>>;
 
-  users: User[];
-  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  usersWithSocketsIds: SocketIdWithUser[];
+  setUsersWithSocketsIds: React.Dispatch<React.SetStateAction<SocketIdWithUser[]>>;
 
   currentUser: User | null;
   setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
@@ -54,6 +62,11 @@ export const SocketIOClientWithDataProvider = ({
   client: SocketIOClient;
   children?: React.ReactNode;
 }): JSX.Element => {
+  const [messages, setMessages] = React.useState<MessagesWithUserType[]>([]);
+  const [usersWithSocketsIds, setUsersWithSocketsIds] = React.useState<SocketIdWithUser[]>([]);
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [registeredHandlers, setRegisteredHandlers] = React.useState<string[]>([]);
+
   React.useEffect(() => {
     client.mount();
 
@@ -62,17 +75,12 @@ export const SocketIOClientWithDataProvider = ({
     };
   }, [client]);
 
-  const [messages, setMessages] = React.useState<MessagesWithUserType[]>([]);
-  const [users, setUsers] = React.useState<User[]>([]);
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-  const [registeredHandlers, setRegisteredHandlers] = React.useState<string[]>([]);
-
   const passedValue = {
     socketIoClient: client,
     messages,
     setMessages,
-    users,
-    setUsers,
+    usersWithSocketsIds,
+    setUsersWithSocketsIds,
     currentUser,
     setCurrentUser,
     registeredHandlers,
