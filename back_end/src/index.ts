@@ -61,6 +61,7 @@ io.on('connection', (socket) => {
     for (const room of socket.rooms) {
       if (room !== socket.id) {
         let user = users.get(socket.id);
+        const userData = { socketId: socket.id, user };
         users.delete(socket.id);
 
         console.log('room', room, 'user has left', 'socket.id', socket.id, 'user', user);
@@ -72,7 +73,7 @@ io.on('connection', (socket) => {
           msg = `user ${user.username} leaves room`;
         }
 
-        socket.to(room).emit(OperationsTypes.user_leave, { user, message: msg });
+        socket.to(room).emit(OperationsTypes.user_leave, { userData, message: msg });
       }
     }
   });
@@ -110,11 +111,11 @@ io.on('connection', (socket) => {
 
     if (currentUser) {
       socket.emit(OperationsTypes.user_enter_send_users, {
-        users: usersData,
+        usersData,
       });
     } else {
       io.to(rooms.chat_room).emit(OperationsTypes.user_enter_send_users, {
-        users: usersData,
+        usersData,
       });
     }
   }
