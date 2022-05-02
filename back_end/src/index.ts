@@ -24,6 +24,11 @@ export enum OperationsTypes {
   user_sign_in = 'user:sign_in',
   chat_message_send = 'chat:message:send',
   chat_message_get = 'chat:message:get',
+  //
+  user_enter_get_users = 'user:enter_room_get_users',
+  user_enter_send_users = 'user:enter_room_send_users',
+  //
+  user_leave = 'user:leave_room',
 }
 
 export type User = {
@@ -31,7 +36,7 @@ export type User = {
   username: string;
 };
 
-const users = new Map();
+const users = new Map<string, User>();
 
 const messages = [];
 
@@ -55,7 +60,19 @@ io.on('connection', (socket) => {
   socket.on('disconnecting', (reason) => {
     for (const room of socket.rooms) {
       if (room !== socket.id) {
-        socket.to(room).emit('user has left', socket.id);
+        let user = users.get(socket.id);
+        users.delete(socket.id);
+
+        console.log('room', room, 'user has left', 'socket.id', socket.id, 'user', user);
+        let msg;
+        if (!user) {
+          msg = `user unknown leaves room`;
+          user = { username: 'unknown', id: socket.id };
+        } else {
+          msg = `user ${user.username} leaves room`;
+        }
+
+        socket.to(room).emit(OperationsTypes.user_leave, { user, message: msg });
       }
     }
   });
@@ -66,7 +83,6 @@ io.on('connection', (socket) => {
       console.log('message: ' + message, 'from user', user);
       messages.push({ message, user });
       io.to(rooms.chat_room).emit(OperationsTypes.chat_message_get, { message, user });
-      // socket.emit(OperationsTypes.chat_message_get, { message, user });
     },
   );
 
@@ -76,11 +92,34 @@ io.on('connection', (socket) => {
     const newUser = { id: randomUUID(), username };
 
     io.to(rooms.chat_room).emit(OperationsTypes.chat_message_get, { message: msg, user: newUser });
-    // socket.emit(OperationsTypes.chat_message_get, { message: msg, user: newUser });
 
-    users.set(newUser.id, newUser);
+    users.set(socket.id, newUser);
+
+    sendUsersHandlerSocketEmit(false);
+
     callback(newUser);
   });
+
+  function sendUsersHandlerSocketEmit(currentUser = true) {
+    const usersData = [];
+    for (let item of users.entries()) {
+      let [key, value] = item;
+      usersData.push({ socketId: key, user: value });
+    }
+    console.log('sending users data', usersData);
+
+    if (currentUser) {
+      socket.emit(OperationsTypes.user_enter_send_users, {
+        users: usersData,
+      });
+    } else {
+      io.to(rooms.chat_room).emit(OperationsTypes.user_enter_send_users, {
+        users: usersData,
+      });
+    }
+  }
+
+  socket.on(OperationsTypes.user_enter_get_users, sendUsersHandlerSocketEmit);
 });
 
 io.of('/').adapter.on('create-room', (room) => {

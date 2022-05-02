@@ -16,11 +16,15 @@ export default function ChatComponent() {
   }
 
   return (
-    <React.Fragment>
-      <Title>chat page</Title>
-      <h4>username: {currentUser?.username}</h4>
+    <div className="container-md">
+      <div className="row g-2 justify-content-center">
+        <div className="col-12">
+          <Title>chat page</Title>
+          <h4>username: {currentUser?.username}</h4>
 
-      {renderedChatContent}
-    </React.Fragment>
+          {renderedChatContent}
+        </div>
+      </div>
+    </div>
   );
 }
