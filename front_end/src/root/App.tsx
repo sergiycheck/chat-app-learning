@@ -3,12 +3,9 @@ import styled from "styled-components";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { ReactQueryDevtools } from "react-query/devtools";
 import { BrowserRouter, Link, Outlet, Route, Routes } from "react-router-dom";
-import Example from "./react_query/example_simple/Example";
-import ChatComponent from "./socket_io/get-started/chat-component";
-import {
-  SocketIOClient,
-  SocketIOClientWithDataProvider,
-} from "./socket_io/get-started/socket-provider";
+import Example from "../react_query/example_simple/Example";
+import ChatComponent from "../socket_io/get-started/chat-component";
+import { SocketIOClientWithDataProvider } from "../socket_io/get-started/socket-provider";
 
 function AppRouting({ children }: { children: React.ReactNode }) {
   return (
@@ -55,13 +52,11 @@ const StyledNav = styled.nav`
 `;
 
 const queryClient = new QueryClient();
-const SERVER_URL = "http://localhost:3020";
-const socketIoClient = new SocketIOClient(SERVER_URL);
 
 export default function AppComponent() {
   return (
     <QueryClientProvider client={queryClient}>
-      <SocketIOClientWithDataProvider client={socketIoClient}>
+      <SocketIOClientWithDataProvider>
         <App>
           <AppRouting>
             <StyledNav>

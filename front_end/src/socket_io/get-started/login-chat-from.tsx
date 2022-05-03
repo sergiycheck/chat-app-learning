@@ -1,20 +1,52 @@
+import axios, { AxiosError, AxiosResponse } from "axios";
 import React from "react";
+import { useMutation, UseMutationOptions } from "react-query";
+import { SERVER_URL } from "../../root/endpoints";
+import { useLocalStorage } from "./hooks/userLocalStorage.hook";
 import { StyledChat, Button } from "./shared-styled";
 import { SocketContextWithData } from "./socket-provider";
-import { OperationsTypes, User } from "./types";
+import { UserData } from "./types";
+
+function useSingInUserMutation(
+  options?: UseMutationOptions<AxiosResponse<{ userData: UserData }>, AxiosError, string>
+) {
+  return useMutation(
+    ["current-user"],
+    (username: string) => {
+      return axios.post<{ userData: UserData }>(`${SERVER_URL}/sign-in`, { username });
+    },
+    options
+  );
+}
 
 export default function LoginChatForm() {
   const [inputVal, setInputVal] = React.useState<string>("");
   const socketClientWithData = React.useContext(SocketContextWithData);
 
-  const userSignIn = (username: string) => {
-    const { socket } = socketClientWithData.socketIoClient;
+  const { mutate, isError, isLoading, isSuccess, data: resp, error } = useSingInUserMutation();
 
-    socket?.emit(OperationsTypes.user_sign_in, { username }, (user: User) => {
-      console.log("user got", user);
-      socketClientWithData.setCurrentUser(user);
-    });
+  const userSignIn = (username: string) => {
+    mutate(username);
   };
+
+  const [currentUser, setCurrentUser] = useLocalStorage(
+    "currentUser",
+    socketClientWithData.currentUser
+  );
+
+  React.useEffect(() => {
+    if (currentUser) {
+      socketClientWithData.setCurrentUser(currentUser);
+    }
+  }, [currentUser, socketClientWithData]);
+
+  React.useEffect(() => {
+    if (isSuccess) {
+      const { userData } = resp.data;
+      window.localStorage.setItem("currentUser", JSON.stringify(userData));
+      socketClientWithData.setCurrentUser(userData);
+    }
+  }, [isSuccess, resp, socketClientWithData, setCurrentUser]);
 
   return (
     <StyledChat>
@@ -37,6 +69,9 @@ export default function LoginChatForm() {
           sign in{" "}
         </Button>
       </form>
+      {isLoading && <div>singing in...</div>}
+      {isError && <div>An error occurred: {error.message}</div>}
+      {isSuccess && <div>user signed in!</div>}
     </StyledChat>
   );
 }

@@ -5,3 +5,7 @@ https://habr.com/ru/post/544046/
 https://stackoverflow.com/questions/54824036/useeffect-hook-with-socket-io-state-is-not-persistent-in-socket-handlers Set up a new socket event handler with each change to participants. In order for this to work correctly, you need to remove the previous event handler otherwise you will have the same number of event handlers as renders
 
 problem solved share 1 socket instance across components with react context
+
+
+user immer to update state
+https://immerjs.github.io/immer/curried-produce/

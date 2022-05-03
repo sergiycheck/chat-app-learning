@@ -2,10 +2,13 @@ import express from 'express';
 import http from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
-import { MessagesWithUserType, EventsTypes } from './app_types';
+import { EventsTypes } from './app_types';
 import { roomJoinHandler } from './socket-handlres/room-join-handler';
 import { disconnectionHandlers } from './socket-handlres/disconnection-handlers';
 import { chatHandlers } from './socket-handlres/chat-handlers';
+import { randomUUID } from 'crypto';
+import { usersData } from './run-time-db-entities';
+import { mapUsersDataMapToArray } from './socket-handlres/chat-shared-handlers';
 
 const app: express.Application = express();
 
@@ -31,6 +34,26 @@ const onConnection = (socket: Socket) => {
 
 io.on(EventsTypes.connection, (socket) => {
   onConnection(socket);
+});
+
+app.post('/sign-in', (req, res) => {
+  const { username } = req.body as { username: string };
+  const msg = `user ${username} sign in`;
+  console.log(msg);
+  const newUser = { id: randomUUID(), username, socketId: null };
+  usersData.set(newUser.id, newUser);
+  res.json({ userData: newUser });
+});
+
+app.get('/get-user/:userId', (req, res) => {
+  const { userId } = req.params;
+  const user = usersData.get(userId);
+  res.json({ userData: user });
+});
+
+app.get('/get-users', (req, res) => {
+  const usersDataArr = mapUsersDataMapToArray(usersData);
+  res.json({ usersDataArr });
 });
 
 server.listen(3020, () => {

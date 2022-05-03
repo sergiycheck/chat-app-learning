@@ -1,8 +1,11 @@
-import { User } from './app_types';
+import { UserData } from './app_types';
 
-export const users = new Map<string, User>();
+export const usersData = new Map<string, UserData>();
+export const currentUsersInChat = new Map<string, UserData>();
 
-export const messages = [];
+type MessageArrType = { message: string; userData: UserData };
+
+export const messages: MessageArrType[] = [];
 
 export const rooms = {
   chat_room: 'chat room',
