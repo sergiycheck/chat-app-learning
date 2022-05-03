@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
 import React from "react";
 import { useMutation, UseMutationOptions } from "react-query";
-import { SERVER_URL } from "../../root/endpoints";
+import { USERS_ENDPOINT } from "../../root/endpoints";
 import { useLocalStorage } from "./hooks/userLocalStorage.hook";
 import { StyledChat, Button } from "./shared-styled";
 import { SocketContextWithData } from "./socket-provider";
@@ -13,7 +13,7 @@ function useSingInUserMutation(
   return useMutation(
     ["current-user"],
     (username: string) => {
-      return axios.post<{ userData: UserData }>(`${SERVER_URL}/sign-in`, { username });
+      return axios.post<{ userData: UserData }>(`${USERS_ENDPOINT}/sign-in`, { username });
     },
     options
   );

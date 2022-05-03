@@ -4,8 +4,14 @@ export type UserData = {
   socketId: string | null;
 };
 
-export type MessagesWithUserData = {
+type MessageRootData = {
+  id: string;
   message: string;
+};
+
+export type MessageWithRelations = MessageRootData & {
+  createdAt: string;
+  updatedAt: string;
   userData: UserData;
 };
 

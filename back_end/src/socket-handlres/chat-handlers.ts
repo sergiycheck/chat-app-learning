@@ -1,8 +1,11 @@
 import { Socket, Server } from 'socket.io';
 import { DefaultEventsMap } from 'socket.io/dist/typed-events';
 import { MessagesWithUserData, EventsTypes, UserData } from '../app_types';
-import { currentUsersInChat, messages, rooms, usersData } from '../run-time-db-entities';
-import { mapUsersDataMapToArray } from './chat-shared-handlers';
+import { rooms } from '../run-time-db-entities';
+import userModel, { currentUsersInChatModel } from '../models/user';
+import messageModel from '../models/message';
+import mongoose from 'mongoose';
+import { randomUUID } from 'crypto';
 
 type UpdateUserType = {
   userId: string;
@@ -15,62 +18,107 @@ export const chatHandlers = (
   io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
 ) => {
   //
-  socket.on(EventsTypes.chat_update_user, (data: UpdateUserType, callback: UpdateCallBackType) => {
-    const { userId, socketId } = data;
-    const userData = usersData.get(userId);
-    userData.socketId = socketId;
-    callback({ userData });
-  });
+  socket.on(
+    EventsTypes.chat_update_user,
+    async (data: UpdateUserType, callback: UpdateCallBackType) => {
+      const { userId, socketId } = data;
+
+      const userData = await userModel.findOneAndUpdate(
+        { _id: userId },
+        { socketId: socketId },
+        { new: true },
+      );
+
+      callback({ userData });
+    },
+  );
   //
-  socket.on(EventsTypes.chat_message_send, ({ data }: { data: MessagesWithUserData }) => {
-    const { message, userData } = data;
-    console.log('message: ' + message, 'from user', userData);
-    messages.push({ message, userData });
-    io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { message, userData });
-  });
+  socket.on(
+    EventsTypes.chat_message_send,
+    async (data: { message: string; userData: UserData }) => {
+      const { message, userData } = data;
 
-  // socket.on(EventsTypes.user_sign_in, ({ username }: { username: string }, callback) => {
-  //   const msg = `user ${username} sign in`;
-  //   console.log(msg);
-  //   const newUser = { id: randomUUID(), username };
+      const id = new mongoose.Types.ObjectId();
+      const messageNewObj = new messageModel({
+        _id: id,
+        id,
+        message,
+        userData: userData.id,
+      });
 
-  //   io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { message: msg, user: newUser });
+      await messageNewObj.save();
 
-  //   users.set(socket.id, newUser);
+      const messageObj = await messageModel.findOne({ _id: id }).populate({ path: 'userData' });
 
-  //   sendUsersHandlerSocketEmit({ currentUser: false, io, socket })();
+      io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { messageWithUser: messageObj });
+    },
+  );
+  //
+  socket.on(EventsTypes.user_enter_get_users, async ({ userId }: { userId: string }) => {
+    const userData = await userModel.findById(userId);
 
-  //   callback(newUser);
-  // });
+    if (!userData) {
+      io.to(rooms.chat_room).emit(EventsTypes.user_enter_send_users, {
+        usersDataArr: [],
+      });
+      return;
+    }
 
-  socket.on(EventsTypes.user_enter_get_users, ({ userId }: { userId: string }) => {
-    const userData = usersData.get(userId);
-    currentUsersInChat.set(userId, userData);
+    const userObj = userData.toObject();
 
-    const usersDataArr = mapUsersDataMapToArray(currentUsersInChat);
+    const newCurrentUserToAdd = {
+      ...userObj,
+      _id: new mongoose.Types.ObjectId(),
+    };
+    const currentUserAdd = new currentUsersInChatModel({
+      ...newCurrentUserToAdd,
+    });
 
-    console.log('sending current users in chat data', usersDataArr);
+    await currentUserAdd.save();
+    const allCurrentUsers = await currentUsersInChatModel.find();
+
     io.to(rooms.chat_room).emit(EventsTypes.user_enter_send_users, {
-      usersDataArr,
+      usersDataArr: allCurrentUsers,
     });
     //
     const msg = `user ${userData.username} joins chat`;
-    io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { message: msg, userData });
-  });
 
+    const messageObj: MessagesWithUserData = {
+      id: randomUUID(),
+      createdAt: `${Date.now()}`,
+      updatedAt: `${Date.now()}`,
+      message: msg,
+      userData: {
+        id: randomUUID(),
+        username: 'system',
+        socketId: socket.id,
+      },
+    };
+    //
+    io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { messageWithUser: messageObj });
+  });
+  //
   socket.on(
     EventsTypes.user_leave_room,
-    ({ userId, roomName }: { userId: string; roomName: string }) => {
+    async ({ userId, roomName }: { userId: string; roomName: string }) => {
       socket.leave(roomName);
-      let userData: UserData = usersData.get(userId);
 
-      currentUsersInChat.delete(userData.id);
+      const userData = await userModel.findById(userId);
+
+      const delRes = await currentUsersInChatModel.deleteOne({ id: userData.id });
 
       const msg = `user ${userData.username} leaves room ${roomName}`;
-      console.log('current users in chat', currentUsersInChat);
       console.log(msg);
 
-      socket.to(roomName).emit(EventsTypes.other_user_leave_room, { userData, message: msg });
+      const messageObj: MessagesWithUserData = {
+        id: randomUUID(),
+        createdAt: `${Date.now()}`,
+        updatedAt: `${Date.now()}`,
+        message: msg,
+        userData,
+      };
+
+      socket.to(roomName).emit(EventsTypes.other_user_leave_room, { messageWithUser: messageObj });
     },
   );
 };

@@ -1,3 +1,5 @@
+import { Schema, model, Document, Types } from 'mongoose';
+
 export enum EventsTypes {
   chat_update_user = 'chat_update_socket_id_for_user',
   //
@@ -21,7 +23,19 @@ export type UserData = {
   socketId: string | null;
 };
 
-export type MessagesWithUserData = {
+type MessageRootData = {
+  id: string;
   message: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type MessageEntity = MessageRootData & {
+  userData: Types.ObjectId;
+};
+
+export type MessagesWithUserData = Omit<MessageRootData, 'createdAt' | 'updatedAt'> & {
   userData: UserData;
+  createdAt: string;
+  updatedAt: string;
 };

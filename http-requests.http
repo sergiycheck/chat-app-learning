@@ -1,8 +1,8 @@
 ##get user
-GET http://localhost:3020/get-user/674c7f37-ed89-4a51-92ae-17c40f02eaf5 HTTP/1.1
+GET http://localhost:3020/api/users/get-user/6271586309154c55aece472e HTTP/1.1
 ###
 ## sign in user
-POST http://localhost:3020/sign-in HTTP/1.1
+POST http://localhost:3020/api/users/sign-in HTTP/1.1
 content-type: application/json
 
 {
@@ -11,5 +11,5 @@ content-type: application/json
 
 ###
 ##get users
-GET http://localhost:3020/get-users HTTP/1.1
+GET http://localhost:3020/api/users/get-users HTTP/1.1
 ###
