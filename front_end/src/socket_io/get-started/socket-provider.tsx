@@ -1,9 +1,9 @@
 import React from "react";
-import { UserData, MessagesWithUserData, UserDataNorm } from "./types";
+import { UserData, MessageWithRelations, UserDataNorm } from "./types";
 
 export const SocketContextWithData = React.createContext<{
-  messages: MessagesWithUserData[];
-  setMessages: React.Dispatch<React.SetStateAction<MessagesWithUserData[]>>;
+  messages: MessageWithRelations[];
+  setMessages: React.Dispatch<React.SetStateAction<MessageWithRelations[]>>;
 
   usersNormData: UserDataNorm;
   setUsersNormData: React.Dispatch<React.SetStateAction<UserDataNorm>>;
@@ -20,7 +20,7 @@ export const SocketIOClientWithDataProvider = ({
 }: {
   children?: React.ReactNode;
 }): JSX.Element => {
-  const [messages, setMessages] = React.useState<MessagesWithUserData[]>([]);
+  const [messages, setMessages] = React.useState<MessageWithRelations[]>([]);
   const [usersNormData, setUsersNormData] = React.useState<UserDataNorm>({});
   const [currentUser, setCurrentUser] = React.useState<UserData | null>(null);
   const [registeredHandlers, setRegisteredHandlers] = React.useState<string[]>([]);

@@ -3,7 +3,7 @@ import React from "react";
 import { io, Socket } from "socket.io-client";
 import { SERVER_URL } from "../../../root/endpoints";
 import { SocketContextWithData } from "../socket-provider";
-import { UserData, MessagesWithUserData, UserDataNorm } from "../types";
+import { UserData, MessageWithRelations, UserDataNorm } from "../types";
 import { rooms, SocketEventsTypes } from "./socket.data";
 
 // components that using the same hook does not share the same state!!!
@@ -67,13 +67,13 @@ export const useChatWithReactQuerySubscription = () => {
   }, [socketMounted, socketClientWithData]);
 
   React.useEffect(() => {
-    function updateMessages(msg: MessagesWithUserData) {
+    function updateMessages(msg: MessageWithRelations) {
       socketClientWithData.setMessages((prevMessages) => {
         return [...prevMessages, msg];
       });
     }
 
-    function messageHandler(messageWithUser: MessagesWithUserData) {
+    function messageHandler({ messageWithUser }: { messageWithUser: MessageWithRelations }) {
       console.log("message get", messageWithUser);
       updateMessages(messageWithUser);
     }
@@ -98,10 +98,14 @@ export const useChatWithReactQuerySubscription = () => {
 
     socketRef.current?.on(SocketEventsTypes.user_enter_send_users, userEnterGetSentUsers);
 
-    function otherUserLeaveChatHandler(userLeaveRoomData: { userData: UserData; message: string }) {
-      const { userData, message } = userLeaveRoomData;
+    function otherUserLeaveChatHandler({
+      messageWithUser,
+    }: {
+      messageWithUser: MessageWithRelations;
+    }) {
+      const { userData, message } = messageWithUser;
       console.log(message);
-      updateMessages({ userData: userData, message });
+      updateMessages(messageWithUser);
       //
       socketClientWithData.setUsersNormData((pUserData) => {
         delete pUserData[userData.id];
@@ -121,19 +125,11 @@ export const useChatWithReactQuerySubscription = () => {
     };
   }, [socketClientWithData]);
 
-  const sendMessage = (data: MessagesWithUserData) => {
+  const sendMessage = (data: { message: string; userData: UserData }) => {
     console.log("sending message ", data);
 
-    socketRef.current?.emit(SocketEventsTypes.chat_message_send, {
-      data,
-    });
+    socketRef.current?.emit(SocketEventsTypes.chat_message_send, data);
   };
-
-  // const sendToGetUsersCallBack = React.useCallback(() => {
-  //   const { socket } = socketClientWithData.socketIoClient;
-
-  //   socket?.emit(OperationsTypes.user_enter_get_users);
-  // }, [socketClientWithData.socketIoClient]);
 
   // const singOutCallBack = React.useCallback(() => {
   //   const { socket } = socketClientWithData.socketIoClient;
