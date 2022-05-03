@@ -1,7 +1,6 @@
 import { Socket } from 'socket.io';
 import { EventsTypes } from '../app_types';
-import { rooms, users } from '../run-time-db-entities';
-import { userLeaveRoomHandler } from './chat-shared-handlers';
+import { rooms, usersData } from '../run-time-db-entities';
 
 export const disconnectionHandlers = (socket: Socket) => {
   //
@@ -11,9 +10,12 @@ export const disconnectionHandlers = (socket: Socket) => {
   });
   //
   socket.on(EventsTypes.disconnecting, (reason) => {
+    console.log('socket disconnecting');
     for (const room of socket.rooms) {
       if (room !== socket.id) {
-        userLeaveRoomHandler({ room, socket });
+        socket.leave(room);
+        console.log(`socket.id ${socket.id} has left room ${room}`);
+        console.log('users left', usersData);
       }
     }
   });

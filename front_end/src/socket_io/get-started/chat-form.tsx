@@ -1,10 +1,9 @@
 import React from "react";
 import styled from "styled-components";
-import { useChatWithReactQuerySubscription } from "./chat.hooks";
-
+import { useChatWithReactQuerySubscription } from "./hooks/chat.hooks";
 import { StyledChat, StyledMessageForm, Button } from "./shared-styled";
 import { SocketContextWithData } from "./socket-provider";
-import { SocketIdWithUser } from "./types";
+import { UserData } from "./types";
 
 const StyledUl = styled.ul`
   padding: 2em;
@@ -18,7 +17,6 @@ const StyledLi = styled.li`
 
 export default function ChatForm() {
   const chatMethods = useChatWithReactQuerySubscription();
-  const { sendMessage, sendToGetUsersCallBack } = chatMethods;
 
   const chatData = React.useContext(SocketContextWithData);
 
@@ -30,29 +28,20 @@ export default function ChatForm() {
     let formData = new FormData(event.currentTarget);
     let message = formData.get("user-message") as string;
     if (!message) return;
-    sendMessage(message);
+    chatMethods.sendMessage({ message, userData: chatData.currentUser! });
 
     setInputVal("");
   }
 
-  const sendCallGetUsers = React.useRef(false);
-  React.useEffect(() => {
-    if (!sendCallGetUsers.current) {
-      sendToGetUsersCallBack();
-      sendCallGetUsers.current = true;
-    }
-    // eslint-disable-next-line
-  }, []);
-
   const renderedMessages = chatData.messages.map((msg, i) => (
     <StyledLi key={i}>
-      <div>username: {msg.user.username}</div>
+      <div>username: {msg.userData.username}</div>
       <div>message: {msg.message}</div>
     </StyledLi>
   ));
 
   const renderedActiveUsers = Object.values(chatData.usersNormData).map((item, i) => (
-    <UserItemWithData key={item.user.id} item={item} />
+    <UserItemWithData key={item.id} item={item} />
   ));
 
   return (
@@ -78,6 +67,7 @@ export default function ChatForm() {
           <Button
             onClick={() => {
               chatData.setCurrentUser(null);
+              window.localStorage.removeItem("currentUser");
             }}
           >
             sign out
@@ -92,6 +82,6 @@ export default function ChatForm() {
   );
 }
 
-export const UserItemWithData = ({ item }: { item: SocketIdWithUser }) => {
-  return <StyledLi>{item.user.username}</StyledLi>;
+export const UserItemWithData = ({ item }: { item: UserData }) => {
+  return <StyledLi>{item.username}</StyledLi>;
 };

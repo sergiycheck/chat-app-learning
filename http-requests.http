@@ -1,0 +1,15 @@
+##get user
+GET http://localhost:3020/get-user/674c7f37-ed89-4a51-92ae-17c40f02eaf5 HTTP/1.1
+###
+## sign in user
+POST http://localhost:3020/sign-in HTTP/1.1
+content-type: application/json
+
+{
+	"username": "user 1 username"
+}
+
+###
+##get users
+GET http://localhost:3020/get-users HTTP/1.1
+###
