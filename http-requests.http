@@ -13,3 +13,23 @@ content-type: application/json
 ##get users
 GET http://localhost:3020/api/users/get-users HTTP/1.1
 ###
+
+
+###
+DELETE http://localhost:3020/api/users/6272a3ce5ce6ac18d4eb4148 HTTP/1.1
+
+###
+GET http://localhost:3020/api/users/get-users-in-chat HTTP/1.1
+
+
+###
+DELETE http://localhost:3020/api/users/user-from-chat/6272a3ce5ce6ac18d4eb4148 HTTP/1.1
+
+###
+GET http://localhost:3020/api/messages HTTP/1.1
+
+###
+DELETE http://localhost:3020/api/messages/single/6272a4425ce6ac18d4eb415c HTTP/1.1
+
+###
+DELETE http://localhost:3020/api/messages/delete-all HTTP/1.1

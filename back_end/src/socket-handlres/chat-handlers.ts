@@ -17,7 +17,6 @@ export const chatHandlers = (
   socket: Socket,
   io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
 ) => {
-  //
   socket.on(
     EventsTypes.chat_update_user,
     async (data: UpdateUserType, callback: UpdateCallBackType) => {
@@ -32,7 +31,7 @@ export const chatHandlers = (
       callback({ userData });
     },
   );
-  //
+
   socket.on(
     EventsTypes.chat_message_send,
     async (data: { message: string; userData: UserData }) => {
@@ -53,7 +52,7 @@ export const chatHandlers = (
       io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { messageWithUser: messageObj });
     },
   );
-  //
+
   socket.on(EventsTypes.user_enter_get_users, async ({ userId }: { userId: string }) => {
     const userData = await userModel.findById(userId);
 
@@ -75,18 +74,13 @@ export const chatHandlers = (
     });
 
     await currentUserAdd.save();
-    const allCurrentUsers = await currentUsersInChatModel.find();
 
-    io.to(rooms.chat_room).emit(EventsTypes.user_enter_send_users, {
-      usersDataArr: allCurrentUsers,
-    });
-    //
     const msg = `user ${userData.username} joins chat`;
 
     const messageObj: MessagesWithUserData = {
       id: randomUUID(),
-      createdAt: `${Date.now()}`,
-      updatedAt: `${Date.now()}`,
+      createdAt: `${new Date().toISOString()}`,
+      updatedAt: `${new Date().toISOString()}`,
       message: msg,
       userData: {
         id: randomUUID(),
@@ -94,31 +88,50 @@ export const chatHandlers = (
         socketId: socket.id,
       },
     };
-    //
+
     io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { messageWithUser: messageObj });
+
+    const allCurrentUsers = await currentUsersInChatModel.find();
+
+    io.to(rooms.chat_room).emit(EventsTypes.user_enter_send_users, {
+      usersDataArr: allCurrentUsers,
+    });
   });
-  //
+
+  //TODO: useBefore unload is not hitting on the server
+  // only hitting when switching between components
+  // but not on page reload
   socket.on(
     EventsTypes.user_leave_room,
     async ({ userId, roomName }: { userId: string; roomName: string }) => {
-      socket.leave(roomName);
-
       const userData = await userModel.findById(userId);
+      let msg;
 
-      const delRes = await currentUsersInChatModel.deleteOne({ id: userData.id });
-
-      const msg = `user ${userData.username} leaves room ${roomName}`;
-      console.log(msg);
+      if (userData) {
+        const delRes = await currentUsersInChatModel.deleteOne({ id: userData.id });
+        if (delRes.deletedCount) {
+          msg = `user ${userData.username} leaves room ${roomName}`;
+        } else {
+          msg = `can not remove user ${userData.username} from room ${roomName}`;
+        }
+      } else {
+        msg = `user does not exist`;
+      }
 
       const messageObj: MessagesWithUserData = {
         id: randomUUID(),
-        createdAt: `${Date.now()}`,
-        updatedAt: `${Date.now()}`,
+        createdAt: `${new Date().toISOString()}`,
+        updatedAt: `${new Date().toISOString()}`,
         message: msg,
         userData,
       };
 
       socket.to(roomName).emit(EventsTypes.other_user_leave_room, { messageWithUser: messageObj });
+      const targetRoom = io.sockets.adapter.rooms.get(rooms.chat_room);
+      if (targetRoom) {
+        console.log('clients in room count', targetRoom.size);
+      }
+      socket.leave(roomName);
     },
   );
 };

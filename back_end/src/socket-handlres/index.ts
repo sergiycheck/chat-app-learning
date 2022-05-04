@@ -9,7 +9,7 @@ const onConnection = (
   io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
 ) => {
   roomJoinHandler(socket, io);
-  disconnectionHandlers(socket);
+  disconnectionHandlers(socket, io);
   chatHandlers(socket, io);
 };
 

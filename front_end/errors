@@ -1,0 +1,5 @@
+can not enable logging with socket io client
+for browser
+issue
+https://github.com/socketio/socket.io-client/issues/1516
+

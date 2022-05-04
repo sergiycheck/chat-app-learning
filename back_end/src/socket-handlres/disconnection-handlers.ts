@@ -1,8 +1,12 @@
-import { Socket } from 'socket.io';
+import { Socket, Server } from 'socket.io';
 import { EventsTypes } from '../app_types';
 import { rooms } from '../run-time-db-entities';
+import { DefaultEventsMap } from 'socket.io/dist/typed-events';
 
-export const disconnectionHandlers = (socket: Socket) => {
+export const disconnectionHandlers = (
+  socket: Socket,
+  io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
+) => {
   //
   socket.on(EventsTypes.disconnect, () => {
     console.log('user disconnected');
