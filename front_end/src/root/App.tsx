@@ -51,7 +51,17 @@ const StyledNav = styled.nav`
   }
 `;
 
-const queryClient = new QueryClient();
+// TODO: set debugging scope for socket.io
+// current issue for a year
+// window.localStorage.setItem("debug", "*");
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: Infinity,
+    },
+  },
+});
 
 export default function AppComponent() {
   return (

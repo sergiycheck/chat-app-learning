@@ -1,24 +1,51 @@
+import axios from "axios";
 import React from "react";
+import { useQuery } from "react-query";
 import styled from "styled-components";
-import { useChatWithReactQuerySubscription } from "./hooks/chat.hooks";
+import { MESSAGES_ENDPOINT } from "../../root/endpoints";
+import { TimeAgo } from "../../shared/time-ago";
+import {
+  transformArrayToNormStateObj,
+  useChatWithReactQuerySubscription,
+} from "./hooks/chat.hooks";
 import { StyledChat, StyledMessageForm, Button } from "./shared-styled";
 import { SocketContextWithData } from "./socket-provider";
-import { UserData } from "./types";
+import { MessageWithRelations, UserData } from "./types";
+
+const UlWrapper = styled.div`
+  width: 100%;
+  overflow-y: scroll;
+  max-height: 60vh;
+`;
 
 const StyledUl = styled.ul`
   padding: 2em;
+  display: flex;
+  flex-direction: column;
 `;
 
 const StyledLi = styled.li`
   display: flex;
-  justify-content: space-between;
-  gap: 2rem;
+  flex-direction: column;
 `;
+
+type GetAllMessagesType = {
+  count: number;
+  messagesArr: MessageWithRelations[];
+};
+
+const fetchMessages = async () => {
+  const res = await axios.get<GetAllMessagesType>(`${MESSAGES_ENDPOINT}`);
+  const arrData = res.data.messagesArr;
+  const normData = transformArrayToNormStateObj(arrData);
+  return normData;
+};
 
 export default function ChatForm() {
   const chatMethods = useChatWithReactQuerySubscription();
-
   const chatData = React.useContext(SocketContextWithData);
+
+  const { data, isLoading, isError, isSuccess } = useQuery(["messages"], fetchMessages);
 
   const [inputVal, setInputVal] = React.useState<string>("");
 
@@ -33,22 +60,39 @@ export default function ChatForm() {
     setInputVal("");
   }
 
-  const renderedMessages = chatData.messages.map((msg, i) => (
-    <StyledLi key={i}>
-      <div>username: {msg.userData.username}</div>
-      <div>message: {msg.message}</div>
-    </StyledLi>
-  ));
+  let renderedMessages;
 
-  const renderedActiveUsers = Object.values(chatData.usersNormData).map((item, i) => (
-    <UserItemWithData key={item.id} item={item} />
-  ));
+  if (isLoading) {
+    renderedMessages = <div>loading...</div>;
+  } else if (isError) {
+    renderedMessages = <div>error</div>;
+  }
+
+  renderedMessages = data
+    ? Object.values(data).map((msg, i) => (
+        <StyledLi key={i}>
+          <div className="d-flex gap-2">
+            <div>{msg.userData.username}</div>
+            <div>{msg.message}</div>
+          </div>
+          <TimeAgo timeStamp={msg.updatedAt} />
+        </StyledLi>
+      ))
+    : null;
+
+  const renderedActiveUsers = chatData.usersNormData
+    ? Object.values(chatData.usersNormData).map((item, i) => (
+        <UserItemWithData key={item.id} item={item} />
+      ))
+    : null;
 
   return (
     <div className="row">
       <div className="col-8">
         <StyledChat>
-          <StyledUl>{renderedMessages}</StyledUl>
+          <UlWrapper>
+            <StyledUl>{renderedMessages}</StyledUl>
+          </UlWrapper>
           <StyledMessageForm>
             <div>username: {chatData.currentUser?.username}</div>
             <form autoComplete="off" onSubmit={handleSubmit}>
@@ -74,7 +118,7 @@ export default function ChatForm() {
           </Button>
         </StyledChat>
       </div>
-      <div className="col-4">
+      <div className="col-sm-auto col-2">
         <h4>active users</h4>
         <ul>{renderedActiveUsers}</ul>
       </div>

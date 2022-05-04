@@ -1,19 +1,44 @@
+import { useQueryClient } from "react-query";
+import { GenericDataNorm } from "./../types";
 import { DefaultEventsMap } from "@socket.io/component-emitter";
 import React from "react";
 import { io, Socket } from "socket.io-client";
 import { SERVER_URL } from "../../../root/endpoints";
 import { SocketContextWithData } from "../socket-provider";
-import { UserData, MessageWithRelations, UserDataNorm } from "../types";
+import { UserData, MessageWithRelations } from "../types";
 import { rooms, SocketEventsTypes } from "./socket.data";
+import { useBeforeUnload } from "./useBeforeUnload.hook";
+
+export function transformArrayToNormStateObj<TData extends { id: string }>(itemsArr: Array<TData>) {
+  const stateBuilder = (stateToBuild: GenericDataNorm<TData>) => {
+    return (userData: TData) => {
+      stateToBuild[userData.id] = userData;
+    };
+  };
+
+  const stateToSet: GenericDataNorm<TData> = {};
+  itemsArr.forEach(stateBuilder(stateToSet));
+  return stateToSet;
+}
 
 // components that using the same hook does not share the same state!!!
-
 export const useChatWithReactQuerySubscription = () => {
+  //
   const socketClientWithData = React.useContext(SocketContextWithData);
 
-  //
+  const queryClient = useQueryClient();
+
   const socketRef = React.useRef<Socket<DefaultEventsMap, DefaultEventsMap>>();
   const [socketMounted, setSocketMounted] = React.useState<Boolean>(false);
+
+  //TODO: useBefore unload is not hitting on the server
+  useBeforeUnload((val: any) => {
+    console.log("before unload", `${socketRef.current?.connected}`);
+    socketRef.current?.emit(SocketEventsTypes.user_leave_room, {
+      userId: socketClientWithData.currentUser?.id,
+      roomName: rooms.chat_room,
+    });
+  });
 
   React.useEffect(() => {
     socketRef.current = io(SERVER_URL);
@@ -35,7 +60,7 @@ export const useChatWithReactQuerySubscription = () => {
         userId: socketClientWithData.currentUser?.id,
         roomName: rooms.chat_room,
       });
-
+      //
       socketRef.current?.disconnect();
       //
       socketRef.current?.off(SocketEventsTypes.connect);
@@ -68,8 +93,10 @@ export const useChatWithReactQuerySubscription = () => {
 
   React.useEffect(() => {
     function updateMessages(msg: MessageWithRelations) {
-      socketClientWithData.setMessages((prevMessages) => {
-        return [...prevMessages, msg];
+      queryClient.setQueriesData(["messages"], (updaterOldData) => {
+        const oldData = updaterOldData as unknown as GenericDataNorm<MessageWithRelations>;
+        const result = { ...oldData, [msg.id]: msg };
+        return result;
       });
     }
 
@@ -83,13 +110,8 @@ export const useChatWithReactQuerySubscription = () => {
     function userEnterGetSentUsers({ usersDataArr }: { usersDataArr: Array<UserData> }) {
       console.log("got data on user enter", usersDataArr);
 
-      const stateBuilder = (stateToBuild: UserDataNorm) => {
-        return (userData: UserData) => {
-          stateToBuild[userData.id] = userData;
-        };
-      };
-      const stateToSet: UserDataNorm = {};
-      usersDataArr.forEach(stateBuilder(stateToSet));
+      const stateToSet = transformArrayToNormStateObj(usersDataArr);
+
       socketClientWithData.setUsersNormData((prevUsersData) => ({
         ...prevUsersData,
         ...stateToSet,
@@ -108,7 +130,7 @@ export const useChatWithReactQuerySubscription = () => {
       updateMessages(messageWithUser);
       //
       socketClientWithData.setUsersNormData((pUserData) => {
-        delete pUserData[userData.id];
+        if (pUserData) delete pUserData[userData.id];
         return { ...pUserData };
       });
     }
@@ -123,6 +145,8 @@ export const useChatWithReactQuerySubscription = () => {
       //
       socketRef.current?.off(SocketEventsTypes.other_user_leave_room, otherUserLeaveChatHandler);
     };
+
+    //eslint-disable-next-line
   }, [socketClientWithData]);
 
   const sendMessage = (data: { message: string; userData: UserData }) => {
@@ -130,12 +154,6 @@ export const useChatWithReactQuerySubscription = () => {
 
     socketRef.current?.emit(SocketEventsTypes.chat_message_send, data);
   };
-
-  // const singOutCallBack = React.useCallback(() => {
-  //   const { socket } = socketClientWithData.socketIoClient;
-
-  //   socket?.emit(OperationsTypes.user_enter_get_users);
-  // }, [socketClientWithData.socketIoClient]);
 
   return {
     sendMessage,

@@ -15,6 +15,6 @@ export type MessageWithRelations = MessageRootData & {
   userData: UserData;
 };
 
-export type UserDataNorm = {
-  [key: string]: UserData;
+export type GenericDataNorm<TData> = {
+  [key: string]: TData;
 };
