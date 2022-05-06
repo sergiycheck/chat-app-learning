@@ -23,24 +23,27 @@ export function transformArrayToNormStateObj<TData extends { id: string }>(items
 
 // components that using the same hook does not share the same state!!!
 export const useChatWithReactQuerySubscription = () => {
-  //
   const socketClientWithData = React.useContext(SocketContextWithData);
 
   const queryClient = useQueryClient();
 
   const socketRef = React.useRef<Socket<DefaultEventsMap, DefaultEventsMap>>();
-  const [socketMounted, setSocketMounted] = React.useState<Boolean>(false);
 
-  //TODO: useBefore unload is not hitting on the server
-  useBeforeUnload((val: any) => {
+  //TODO: useBefore unload is not hitting on the server?
+  const beforeUnloadHandler = (val: any) => {
     console.log("before unload", `${socketRef.current?.connected}`);
     socketRef.current?.emit(SocketEventsTypes.user_leave_room, {
       userId: socketClientWithData.currentUser?.id,
       roomName: rooms.chat_room,
     });
-  });
+  };
 
-  React.useEffect(() => {
+  useBeforeUnload(beforeUnloadHandler);
+
+  const [socketMounted, setSocketMounted] = React.useState<Boolean>(false);
+  const connectionSocketHandlers = () => {
+    console.log("sending connection req");
+
     socketRef.current = io(SERVER_URL);
 
     socketRef.current?.on(SocketEventsTypes.connect, () => {
@@ -65,13 +68,12 @@ export const useChatWithReactQuerySubscription = () => {
       //
       socketRef.current?.off(SocketEventsTypes.connect);
       socketRef.current?.off(SocketEventsTypes.disconnect);
-      //
     };
-    //eslint-disable-next-line
-  }, []);
+  };
+  React.useEffect(connectionSocketHandlers, []);
 
   const sendCallUpdateUser = React.useRef(false);
-  React.useEffect(() => {
+  const updateUserEffectHandler = () => {
     if (!sendCallUpdateUser.current && socketMounted) {
       //
       const userId = socketClientWithData.currentUser?.id;
@@ -82,16 +84,14 @@ export const useChatWithReactQuerySubscription = () => {
         const { userData } = response as { userData: UserData };
         socketClientWithData.setCurrentUser(userData);
       });
-      //
-      socketRef.current?.emit(SocketEventsTypes.user_enter_get_users, {
-        userId: socketClientWithData.currentUser!.id,
-      });
+
       //
       sendCallUpdateUser.current = true;
     }
-  }, [socketMounted, socketClientWithData]);
+  };
+  React.useEffect(updateUserEffectHandler, [socketMounted, socketClientWithData]);
 
-  React.useEffect(() => {
+  const chatInteractionEffectHandler = () => {
     function updateMessages(msg: MessageWithRelations) {
       queryClient.setQueriesData(["messages"], (updaterOldData) => {
         const oldData = updaterOldData as unknown as GenericDataNorm<MessageWithRelations>;
@@ -137,6 +137,18 @@ export const useChatWithReactQuerySubscription = () => {
 
     socketRef.current?.on(SocketEventsTypes.other_user_leave_room, otherUserLeaveChatHandler);
 
+    const messageDeleteResponseHandler = (data: { messageId: string }) => {
+      const { messageId } = data;
+      queryClient.setQueriesData(["messages"], (updaterOldData) => {
+        const oldData = updaterOldData as unknown as GenericDataNorm<MessageWithRelations>;
+        const newData = { ...oldData };
+        delete newData[messageId];
+        return newData;
+      });
+    };
+
+    socketRef.current?.on(SocketEventsTypes.chat_msg_del_res, messageDeleteResponseHandler);
+
     return () => {
       //
       socketRef.current?.off(SocketEventsTypes.chat_message_get, messageHandler);
@@ -144,18 +156,27 @@ export const useChatWithReactQuerySubscription = () => {
       socketRef.current?.off(SocketEventsTypes.user_enter_send_users, userEnterGetSentUsers);
       //
       socketRef.current?.off(SocketEventsTypes.other_user_leave_room, otherUserLeaveChatHandler);
+      //
+      socketRef.current?.off(SocketEventsTypes.chat_msg_del_res, messageDeleteResponseHandler);
     };
+  };
 
+  React.useEffect(
+    chatInteractionEffectHandler,
     //eslint-disable-next-line
-  }, [socketClientWithData]);
+    [socketClientWithData]
+  );
 
   const sendMessage = (data: { message: string; userData: UserData }) => {
-    console.log("sending message ", data);
-
     socketRef.current?.emit(SocketEventsTypes.chat_message_send, data);
+  };
+
+  const deleteMessage = (data: { messageId: string; userData: UserData }) => {
+    socketRef.current?.emit(SocketEventsTypes.chat_msg_del_req, data);
   };
 
   return {
     sendMessage,
+    deleteMessage,
   };
 };

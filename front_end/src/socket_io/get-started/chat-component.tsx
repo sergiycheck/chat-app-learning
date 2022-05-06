@@ -20,8 +20,6 @@ export default function ChatComponent() {
       <div className="row g-2 justify-content-center">
         <div className="col-12">
           <Title>chat page</Title>
-          <h4>username: {currentUser?.username}</h4>
-
           {renderedChatContent}
         </div>
       </div>

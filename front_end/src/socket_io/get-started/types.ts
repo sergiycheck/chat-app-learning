@@ -10,6 +10,7 @@ type MessageRootData = {
 };
 
 export type MessageWithRelations = MessageRootData & {
+  canDelete: boolean;
   createdAt: string;
   updatedAt: string;
   userData: UserData;

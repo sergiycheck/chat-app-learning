@@ -8,7 +8,7 @@ import {
   transformArrayToNormStateObj,
   useChatWithReactQuerySubscription,
 } from "./hooks/chat.hooks";
-import { StyledChat, StyledMessageForm, Button } from "./shared-styled";
+import { StyledChat, Button } from "./shared-styled";
 import { SocketContextWithData } from "./socket-provider";
 import { MessageWithRelations, UserData } from "./types";
 
@@ -22,11 +22,26 @@ const StyledUl = styled.ul`
   padding: 2em;
   display: flex;
   flex-direction: column;
+  min-height: 60vh;
 `;
 
-const StyledLi = styled.li`
+const StyledLi = styled.li<{ left?: boolean | undefined }>`
   display: flex;
   flex-direction: column;
+  align-items: ${(props) => (props.left ? "flex-end" : "flex-start")};
+`;
+
+const StyledMessageContainer = styled.div`
+  position: relative;
+`;
+
+const StyledDelMsgBtn = styled.button`
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: transparent;
+  color: inherit;
+  border: none;
 `;
 
 type GetAllMessagesType = {
@@ -45,7 +60,7 @@ export default function ChatForm() {
   const chatMethods = useChatWithReactQuerySubscription();
   const chatData = React.useContext(SocketContextWithData);
 
-  const { data, isLoading, isError, isSuccess } = useQuery(["messages"], fetchMessages);
+  const { data, isLoading, isError } = useQuery(["messages"], fetchMessages);
 
   const [inputVal, setInputVal] = React.useState<string>("");
 
@@ -69,15 +84,33 @@ export default function ChatForm() {
   }
 
   renderedMessages = data
-    ? Object.values(data).map((msg, i) => (
-        <StyledLi key={i}>
-          <div className="d-flex gap-2">
-            <div>{msg.userData.username}</div>
-            <div>{msg.message}</div>
-          </div>
-          <TimeAgo timeStamp={msg.updatedAt} />
-        </StyledLi>
-      ))
+    ? Object.values(data).map((msg, i) => {
+        const messageFromCurrentUser = Boolean(msg.userData.id === chatData.currentUser?.id);
+
+        return (
+          <StyledLi left={messageFromCurrentUser} key={i}>
+            <StyledMessageContainer className="border rounded p-3 m-2">
+              <div className="d-flex gap-2">
+                <div>{msg.userData.username}</div>
+                <div>{msg.message}</div>
+              </div>
+              <TimeAgo timeStamp={msg.updatedAt} />
+              {msg.canDelete && msg.userData.id === chatData.currentUser?.id && (
+                <StyledDelMsgBtn
+                  onClick={() => {
+                    chatMethods.deleteMessage({
+                      messageId: msg.id,
+                      userData: chatData.currentUser!,
+                    });
+                  }}
+                >
+                  x
+                </StyledDelMsgBtn>
+              )}
+            </StyledMessageContainer>
+          </StyledLi>
+        );
+      })
     : null;
 
   const renderedActiveUsers = chatData.usersNormData
@@ -86,29 +119,22 @@ export default function ChatForm() {
       ))
     : null;
 
-  return (
-    <div className="row">
-      <div className="col-8">
-        <StyledChat>
-          <UlWrapper>
-            <StyledUl>{renderedMessages}</StyledUl>
-          </UlWrapper>
-          <StyledMessageForm>
-            <div>username: {chatData.currentUser?.username}</div>
-            <form autoComplete="off" onSubmit={handleSubmit}>
-              <input
-                value={inputVal}
-                onChange={(e) => setInputVal(e.currentTarget.value)}
-                type="text"
-                name="user-message"
-              />
-              <Button type="submit" disabled={!inputVal}>
-                send{" "}
-              </Button>
-            </form>
-          </StyledMessageForm>
+  const lastMessageRef = React.useRef<HTMLLIElement>(null);
+  React.useEffect(() => {
+    lastMessageRef?.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [data]);
 
+  return (
+    <div className="row gap-5">
+      <div className="row align-items-center">
+        <div className="col">
+          <h4>username: {chatData?.currentUser?.username}</h4>
+        </div>
+        <div className="col-auto">
           <Button
+            className="btn"
             onClick={() => {
               chatData.setCurrentUser(null);
               window.localStorage.removeItem("currentUser");
@@ -116,9 +142,49 @@ export default function ChatForm() {
           >
             sign out
           </Button>
+        </div>
+      </div>
+      <div className="col-10 col-sm-10">
+        <StyledChat className="row">
+          <UlWrapper className="col-12">
+            <StyledUl>
+              {renderedMessages}
+              <StyledLi ref={lastMessageRef}></StyledLi>
+            </StyledUl>
+          </UlWrapper>
+          <div className="col-12">
+            <form className="row align-items-center" autoComplete="off" onSubmit={handleSubmit}>
+              <div className="col-auto">
+                <i>username: {chatData.currentUser?.username}</i>
+              </div>
+              <div className="col">
+                <textarea
+                  className="form-control"
+                  value={inputVal}
+                  onChange={(e) => setInputVal(e.currentTarget.value)}
+                  name="user-message"
+                  rows={1}
+                />
+              </div>
+              <div className="col-auto">
+                <Button className="btn" type="submit" disabled={!inputVal}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    className="bi bi-send"
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z" />
+                  </svg>
+                </Button>
+              </div>
+            </form>
+          </div>
         </StyledChat>
       </div>
-      <div className="col-sm-auto col-2">
+      <div className="col-2 col-sm-auto">
         <h4>active users</h4>
         <ul>{renderedActiveUsers}</ul>
       </div>

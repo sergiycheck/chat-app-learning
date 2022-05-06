@@ -1,7 +1,5 @@
-##get user
 GET http://localhost:3020/api/users/get-user/6271586309154c55aece472e HTTP/1.1
 ###
-## sign in user
 POST http://localhost:3020/api/users/sign-in HTTP/1.1
 content-type: application/json
 
@@ -10,26 +8,15 @@ content-type: application/json
 }
 
 ###
-##get users
+###
 GET http://localhost:3020/api/users/get-users HTTP/1.1
 ###
-
-
-###
-DELETE http://localhost:3020/api/users/6272a3ce5ce6ac18d4eb4148 HTTP/1.1
-
-###
-GET http://localhost:3020/api/users/get-users-in-chat HTTP/1.1
-
-
-###
-DELETE http://localhost:3020/api/users/user-from-chat/6272a3ce5ce6ac18d4eb4148 HTTP/1.1
-
+DELETE http://localhost:3020/api/users/all-users HTTP/1.1
 ###
 GET http://localhost:3020/api/messages HTTP/1.1
-
-###
-DELETE http://localhost:3020/api/messages/single/6272a4425ce6ac18d4eb415c HTTP/1.1
-
 ###
 DELETE http://localhost:3020/api/messages/delete-all HTTP/1.1
+###
+GET http://localhost:3020/api/users/get-users-in-chat HTTP/1.1
+###
+DELETE http://localhost:3020/api/users/all-users-in-chat HTTP/1.1

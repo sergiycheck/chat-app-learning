@@ -13,12 +13,6 @@ export const StyledChat = styled.div`
   }
 `;
 
-export const StyledMessageForm = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 2em;
-`;
-
 export const Title = styled.h1`
   font-size: 1.5em;
   text-align: center;
@@ -27,7 +21,7 @@ export const Title = styled.h1`
 
 export const Button = styled.button`
   background: palevioletred;
-  color: white;
+  color: #f0f0f0;
   font-size: 1em;
   margin: 1em;
   padding: 0.25em 1em;
@@ -36,5 +30,8 @@ export const Button = styled.button`
 
   &:disabled {
     background-color: #a27080;
+  }
+  &:hover {
+    color: white;
   }
 `;

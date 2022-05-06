@@ -4,7 +4,7 @@ import { MessagesWithUserData, EventsTypes, UserData } from '../app_types';
 import { rooms } from '../run-time-db-entities';
 import userModel, { currentUsersInChatModel } from '../models/user';
 import messageModel from '../models/message';
-import mongoose from 'mongoose';
+import mongoose, { Query, Document } from 'mongoose';
 import { randomUUID } from 'crypto';
 
 type UpdateUserType = {
@@ -17,16 +17,91 @@ export const chatHandlers = (
   socket: Socket,
   io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
 ) => {
+  async function findAndUpdateUserSocketId(userId: string, socketId: string) {
+    let userData: mongoose.Document<unknown, any, UserData> &
+      UserData & {
+        _id: mongoose.Types.ObjectId;
+      };
+    try {
+      userData = await userModel.findOneAndUpdate(
+        { _id: userId },
+        { socketId: socketId },
+        { new: true },
+      );
+    } catch (error) {
+      throw error;
+    }
+
+    return userData;
+  }
+
+  async function updateOrAddUserToUsersChat({
+    userData,
+    userId,
+  }: {
+    userData: mongoose.Document<unknown, any, UserData> &
+      UserData & {
+        _id: mongoose.Types.ObjectId;
+      };
+    userId: string;
+  }) {
+    const userObj = userData.toObject();
+
+    let updateOrAddUserRes: mongoose.Document<unknown, any, UserData> &
+      UserData & {
+        _id: mongoose.Types.ObjectId;
+      };
+
+    const userInChat = await currentUsersInChatModel.exists({ id: userId });
+    if (userInChat) {
+      const { _id, ...updateKeyVal } = userObj;
+      updateOrAddUserRes = await currentUsersInChatModel.findByIdAndUpdate(
+        userInChat._id,
+        { ...updateKeyVal },
+        { new: true },
+      );
+    } else {
+      const newCurrentUserToAdd = {
+        ...userObj,
+        _id: new mongoose.Types.ObjectId(),
+      };
+      const currentUserAdd = new currentUsersInChatModel({
+        ...newCurrentUserToAdd,
+      });
+
+      updateOrAddUserRes = await currentUserAdd.save();
+    }
+
+    return updateOrAddUserRes;
+  }
+
   socket.on(
     EventsTypes.chat_update_user,
     async (data: UpdateUserType, callback: UpdateCallBackType) => {
       const { userId, socketId } = data;
 
-      const userData = await userModel.findOneAndUpdate(
-        { _id: userId },
-        { socketId: socketId },
-        { new: true },
-      );
+      const userData = await findAndUpdateUserSocketId(userId, socketId);
+
+      const updateOrAddUserRes = await updateOrAddUserToUsersChat({ userData, userId });
+
+      const msg = `user ${userData.username} joins chat`;
+
+      const messageObj: MessagesWithUserData = {
+        canDelete: false,
+        id: randomUUID(),
+        createdAt: `${new Date().toISOString()}`,
+        updatedAt: `${new Date().toISOString()}`,
+        message: msg,
+        userData: updateOrAddUserRes,
+      };
+
+      io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { messageWithUser: messageObj });
+
+      const allCurrentUsers = await currentUsersInChatModel.find();
+
+      io.to(rooms.chat_room).emit(EventsTypes.user_enter_send_users, {
+        usersDataArr: allCurrentUsers,
+      });
 
       callback({ userData });
     },
@@ -43,60 +118,45 @@ export const chatHandlers = (
         id,
         message,
         userData: userData.id,
+        canDelete: true,
       });
 
       await messageNewObj.save();
 
-      const messageObj = await messageModel.findOne({ _id: id }).populate({ path: 'userData' });
+      const messageQuery = await messageModel.findOne({ _id: id }).populate({ path: 'userData' });
 
-      io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { messageWithUser: messageObj });
+      const messageObj = messageQuery.toObject() as unknown as Omit<
+        MessagesWithUserData,
+        'canDelete'
+      >;
+      const messageWithUser: MessagesWithUserData = {
+        ...messageObj,
+        canDelete: true,
+      };
+
+      io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { messageWithUser });
     },
   );
 
-  socket.on(EventsTypes.user_enter_get_users, async ({ userId }: { userId: string }) => {
-    const userData = await userModel.findById(userId);
+  socket.on(
+    EventsTypes.chat_msg_del_req,
+    async (data: { messageId: string; userData: UserData }) => {
+      const { messageId, userData } = data;
 
-    if (!userData) {
-      io.to(rooms.chat_room).emit(EventsTypes.user_enter_send_users, {
-        usersDataArr: [],
-      });
-      return;
-    }
+      const msgFromDb = await messageModel.findOne({ _id: messageId });
 
-    const userObj = userData.toObject();
+      if (msgFromDb) {
+        const msgObj = msgFromDb.toObject();
 
-    const newCurrentUserToAdd = {
-      ...userObj,
-      _id: new mongoose.Types.ObjectId(),
-    };
-    const currentUserAdd = new currentUsersInChatModel({
-      ...newCurrentUserToAdd,
-    });
+        if (msgObj.userData.toString() === userData.id) {
+          const deleteRes = await messageModel.deleteOne({ _id: messageId });
+          if (!deleteRes.deletedCount) return;
 
-    await currentUserAdd.save();
-
-    const msg = `user ${userData.username} joins chat`;
-
-    const messageObj: MessagesWithUserData = {
-      id: randomUUID(),
-      createdAt: `${new Date().toISOString()}`,
-      updatedAt: `${new Date().toISOString()}`,
-      message: msg,
-      userData: {
-        id: randomUUID(),
-        username: 'system',
-        socketId: socket.id,
-      },
-    };
-
-    io.to(rooms.chat_room).emit(EventsTypes.chat_message_get, { messageWithUser: messageObj });
-
-    const allCurrentUsers = await currentUsersInChatModel.find();
-
-    io.to(rooms.chat_room).emit(EventsTypes.user_enter_send_users, {
-      usersDataArr: allCurrentUsers,
-    });
-  });
+          io.to(rooms.chat_room).emit(EventsTypes.chat_msg_del_res, { messageId });
+        }
+      }
+    },
+  );
 
   //TODO: useBefore unload is not hitting on the server
   // only hitting when switching between components
@@ -123,6 +183,7 @@ export const chatHandlers = (
         createdAt: `${new Date().toISOString()}`,
         updatedAt: `${new Date().toISOString()}`,
         message: msg,
+        canDelete: false,
         userData,
       };
 

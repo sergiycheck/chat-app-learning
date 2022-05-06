@@ -22,31 +22,16 @@ const userSignInPost = async (req: Request, res: Response, next: NextFunction) =
   res.json({ userData: user });
 };
 
-const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
-  const { userId } = req.params;
-
-  const userExists = await userModel.exists({ _id: userId });
-
-  if (userExists) {
-    const deleteUserRes = await userModel.deleteOne({ _id: userId });
-
-    return res.json({ deleteUserRes, wasDeleted: deleteUserRes.deletedCount ? true : false });
-  }
-
-  return res.json({ wasDeleted: false });
-};
-
-const deleteUserFromChat = async (req: Request, res: Response, next: NextFunction) => {
-  const { userId } = req.params;
-
-  const userExists = await currentUsersInChatModel.exists({ id: userId });
-
-  if (userExists) {
-    const deleteUserRes = await currentUsersInChatModel.deleteOne({ id: userId });
-
-    return res.json({ deleteUserRes, wasDeleted: deleteUserRes.deletedCount ? true : false });
-  }
-  return res.json({ wasDeleted: false });
+const deleteDocument = <TModel>(model: mongoose.Model<TModel, {}, {}, {}>, key: keyof TModel) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const { userId } = req.params;
+    const userExists = await model.exists({ key: userId });
+    if (userExists) {
+      const deleteUserRes = await model.deleteOne({ key: userId });
+      return res.json({ deleteUserRes, wasDeleted: deleteUserRes.deletedCount ? true : false });
+    }
+    return res.json({ wasDeleted: false });
+  };
 };
 
 // '/get-user/:userId'
@@ -59,23 +44,34 @@ const getUser = async (req: Request, res: Response, next: NextFunction) => {
 
 // '/get-users'
 
-const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
-  const users = await userModel.find();
-  const count = await userModel.estimatedDocumentCount();
-  res.json({ count, usersDataArr: users });
+const getAllDocuments = <TModel>(model: mongoose.Model<TModel, {}, {}, {}>) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const users = await model.find();
+    const count = await model.estimatedDocumentCount();
+    res.json({ count, usersDataArr: users });
+  };
 };
 
-const getUsersInChat = async (req: Request, res: Response, next: NextFunction) => {
-  const users = await currentUsersInChatModel.find();
-  const count = await currentUsersInChatModel.estimatedDocumentCount();
-  res.json({ count, usersDataArr: users });
+const deleteAllDocuments = <TModel>(model: mongoose.Model<TModel, {}, {}, {}>) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const result = await model.deleteMany({});
+    if (result.deletedCount) {
+      return res.json({ result, wasDeleted: true });
+    }
+    return res.json({ wasDeleted: false });
+  };
 };
 
 export default {
   userSignInPost,
   getUser,
-  getAllUsers,
-  getUsersInChat,
-  deleteUser,
-  deleteUserFromChat,
+
+  getAllUsers: getAllDocuments(userModel),
+  getUsersInChat: getAllDocuments(currentUsersInChatModel),
+
+  deleteUser: deleteDocument(userModel, '_id'),
+  deleteUserFromChat: deleteDocument(currentUsersInChatModel, 'id'),
+
+  deleteAllUsers: deleteAllDocuments(userModel),
+  deleteAllUsersInChat: deleteAllDocuments(currentUsersInChatModel),
 };
