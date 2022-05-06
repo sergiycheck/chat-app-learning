@@ -7,8 +7,10 @@ export enum SocketEventsTypes {
   //
   chat_message_send = "chat:message:send",
   chat_message_get = "chat:message:get",
+  //--
+  chat_msg_del_req = "chat:message:delete:request",
+  chat_msg_del_res = "chat:message:delete:response",
   //
-  user_enter_get_users = "user:enter_room_get_users",
   user_enter_send_users = "user:enter_room_send_users",
   //
   user_leave_room = "user:leave_room",

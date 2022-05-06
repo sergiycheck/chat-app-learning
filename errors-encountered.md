@@ -10,3 +10,5 @@ useBeforeUnload((e) => {
 });
 ```js
 ````
+
+DONE: EventsTypes.user_enter_get_users hits faster than userModel.findOneAndUpdate <br/> operation ends. combine EventsTypes.chat_update_user and EventsTypes.user_enter_get_users

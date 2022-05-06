@@ -1,12 +1,14 @@
-import { Schema, model, Document, Types } from 'mongoose';
+import mongoose, { Schema, model, Document, Types } from 'mongoose';
 
 export enum EventsTypes {
   chat_update_user = 'chat_update_socket_id_for_user',
   //
   chat_message_send = 'chat:message:send',
   chat_message_get = 'chat:message:get',
+  //--
+  chat_msg_del_req = 'chat:message:delete:request',
+  chat_msg_del_res = 'chat:message:delete:response',
   //
-  user_enter_get_users = 'user:enter_room_get_users',
   user_enter_send_users = 'user:enter_room_send_users',
   //
   user_leave_room = 'user:leave_room',
@@ -18,6 +20,7 @@ export enum EventsTypes {
 }
 
 export type UserData = {
+  _id: mongoose.Types.ObjectId;
   id: string;
   username: string;
   socketId: string | null;
@@ -28,6 +31,7 @@ type MessageRootData = {
   message: string;
   createdAt: Date;
   updatedAt: Date;
+  canDelete: boolean;
 };
 
 export type MessageEntity = MessageRootData & {

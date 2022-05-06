@@ -10,6 +10,7 @@ const schema = new Schema<MessageEntity>(
     userData: { type: Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now, required: true },
     updatedAt: { type: Date, default: Date.now, required: true },
+    canDelete: { type: Boolean },
   },
   { versionKey: false },
 );
