@@ -13,6 +13,7 @@ export const useBeforeUnload = (value: any) => {
         e.preventDefault();
         e.returnValue = returnValue;
       }
+
       return returnValue;
     }
 

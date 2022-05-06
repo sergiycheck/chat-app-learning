@@ -1,4 +1,5 @@
 export type UserData = {
+  _id: string;
   id: string;
   username: string;
   socketId: string | null;
