@@ -29,9 +29,11 @@ export const useChatWithReactQuerySubscription = () => {
 
   const socketRef = React.useRef<Socket<DefaultEventsMap, DefaultEventsMap>>();
 
-  //TODO: useBefore unload is not hitting on the server?
-  const beforeUnloadHandler = (val: any) => {
+  //TODO: useBefore unload is hitting on the server with some prerequisites
+
+  const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
     console.log("before unload", `${socketRef.current?.connected}`);
+
     socketRef.current?.emit(SocketEventsTypes.user_leave_room, {
       userId: socketClientWithData.currentUser?.id,
       roomName: rooms.chat_room,
@@ -41,9 +43,9 @@ export const useChatWithReactQuerySubscription = () => {
   useBeforeUnload(beforeUnloadHandler);
 
   const [socketMounted, setSocketMounted] = React.useState<Boolean>(false);
-  const connectionSocketHandlers = () => {
-    console.log("sending connection req");
 
+  const connectionSocketHandlers = () => {
+    console.log("connecting");
     socketRef.current = io(SERVER_URL);
 
     socketRef.current?.on(SocketEventsTypes.connect, () => {
@@ -59,6 +61,8 @@ export const useChatWithReactQuerySubscription = () => {
     });
 
     return () => {
+      console.log("disconnecting");
+      //
       socketRef.current?.emit(SocketEventsTypes.user_leave_room, {
         userId: socketClientWithData.currentUser?.id,
         roomName: rooms.chat_room,
@@ -127,15 +131,37 @@ export const useChatWithReactQuerySubscription = () => {
     }) {
       const { userData, message } = messageWithUser;
       console.log(message);
-      updateMessages(messageWithUser);
-      //
+
       socketClientWithData.setUsersNormData((pUserData) => {
-        if (pUserData) delete pUserData[userData.id];
+        if (pUserData && userData.id) delete pUserData[userData.id];
+        return { ...pUserData };
+      });
+
+      updateMessages(messageWithUser);
+    }
+
+    socketRef.current?.on(SocketEventsTypes.other_user_leave_room, otherUserLeaveChatHandler);
+
+    function otherUserLeaveRoomUpdateActiveUsers(data: { objectIdUserId: string }) {
+      const { objectIdUserId } = data;
+      socketClientWithData.setUsersNormData((pUserData) => {
+        if (socketClientWithData.usersNormData) {
+          const user = Object.values(socketClientWithData.usersNormData).find(
+            (u) => u._id === objectIdUserId
+          );
+          const newData = { ...pUserData };
+          if (newData && user) delete newData[user.id];
+
+          return { ...newData };
+        }
         return { ...pUserData };
       });
     }
 
-    socketRef.current?.on(SocketEventsTypes.other_user_leave_room, otherUserLeaveChatHandler);
+    socketRef.current?.on(
+      SocketEventsTypes.other_user_leave_room_update_active_users,
+      otherUserLeaveRoomUpdateActiveUsers
+    );
 
     const messageDeleteResponseHandler = (data: { messageId: string }) => {
       const { messageId } = data;
@@ -156,6 +182,11 @@ export const useChatWithReactQuerySubscription = () => {
       socketRef.current?.off(SocketEventsTypes.user_enter_send_users, userEnterGetSentUsers);
       //
       socketRef.current?.off(SocketEventsTypes.other_user_leave_room, otherUserLeaveChatHandler);
+      //
+      socketRef.current?.off(
+        SocketEventsTypes.other_user_leave_room_update_active_users,
+        otherUserLeaveRoomUpdateActiveUsers
+      );
       //
       socketRef.current?.off(SocketEventsTypes.chat_msg_del_res, messageDeleteResponseHandler);
     };

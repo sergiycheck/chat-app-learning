@@ -12,12 +12,4 @@ export const roomJoinHandler = (
 
   console.log('clients in room count', io.sockets.adapter.rooms.get(rooms.chat_room).size);
   console.log('socket.rooms ', socket.rooms);
-
-  io.of('/').adapter.on('create-room', (room) => {
-    console.log(`room ${room} was created`);
-  });
-
-  io.of('/').adapter.on('join-room', (room, id) => {
-    console.log(`socket ${id} has joined room ${room}`);
-  });
 };

@@ -13,6 +13,7 @@ export enum EventsTypes {
   //
   user_leave_room = 'user:leave_room',
   other_user_leave_room = 'other_user:leave_room',
+  other_user_leave_room_update_active_users = 'other_user:leave_room:update_active_users',
   //
   connection = 'connection',
   disconnect = 'disconnect',

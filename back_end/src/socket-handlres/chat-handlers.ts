@@ -13,6 +13,9 @@ type UpdateUserType = {
 };
 type UpdateCallBackType = (arg: any) => void;
 
+//TODO: a lot of socket connected messages and room chat created ,
+// multiple connection requests ?
+
 export const chatHandlers = (
   socket: Socket,
   io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
@@ -53,8 +56,8 @@ export const chatHandlers = (
       };
 
     const userInChat = await currentUsersInChatModel.exists({ id: userId });
+    const { _id, ...updateKeyVal } = userObj;
     if (userInChat) {
-      const { _id, ...updateKeyVal } = userObj;
       updateOrAddUserRes = await currentUsersInChatModel.findByIdAndUpdate(
         userInChat._id,
         { ...updateKeyVal },
@@ -62,12 +65,10 @@ export const chatHandlers = (
       );
     } else {
       const newCurrentUserToAdd = {
-        ...userObj,
+        ...updateKeyVal,
         _id: new mongoose.Types.ObjectId(),
       };
-      const currentUserAdd = new currentUsersInChatModel({
-        ...newCurrentUserToAdd,
-      });
+      const currentUserAdd = new currentUsersInChatModel(newCurrentUserToAdd);
 
       updateOrAddUserRes = await currentUserAdd.save();
     }
@@ -75,12 +76,52 @@ export const chatHandlers = (
     return updateOrAddUserRes;
   }
 
+  type ChangeStreamReturnObjType = {
+    _id: {
+      data: string;
+    };
+    documentKey: {
+      _id: mongoose.Types.ObjectId;
+    };
+  };
+  currentUsersInChatModel
+    .watch([
+      {
+        $match: {
+          $and: [
+            { operationType: 'delete' },
+            { 'ns.db': 'myFirstDatabase' },
+            { 'ns.coll': 'userinchats' },
+          ],
+        },
+      },
+      {
+        $project: {
+          'documentKey._id': 1,
+        },
+      },
+    ])
+    .on('change', (data: ChangeStreamReturnObjType) => {
+      console.log('data.documentKey', data.documentKey);
+
+      const userId = data.documentKey._id;
+
+      socket
+        .to(rooms.chat_room)
+        .emit(EventsTypes.other_user_leave_room_update_active_users, { objectIdUserId: userId });
+    });
+
   socket.on(
     EventsTypes.chat_update_user,
     async (data: UpdateUserType, callback: UpdateCallBackType) => {
       const { userId, socketId } = data;
 
       const userData = await findAndUpdateUserSocketId(userId, socketId);
+
+      if (!userData) {
+        console.log(`userId user ${userId} was not found`);
+        return;
+      }
 
       const updateOrAddUserRes = await updateOrAddUserToUsersChat({ userData, userId });
 
@@ -178,6 +219,8 @@ export const chatHandlers = (
         msg = `user does not exist`;
       }
 
+      console.log('user_leave_room msg', msg);
+
       const messageObj: MessagesWithUserData = {
         id: randomUUID(),
         createdAt: `${new Date().toISOString()}`,
@@ -187,11 +230,11 @@ export const chatHandlers = (
         userData,
       };
 
-      socket.to(roomName).emit(EventsTypes.other_user_leave_room, { messageWithUser: messageObj });
       const targetRoom = io.sockets.adapter.rooms.get(rooms.chat_room);
       if (targetRoom) {
         console.log('clients in room count', targetRoom.size);
       }
+      socket.to(roomName).emit(EventsTypes.other_user_leave_room, { messageWithUser: messageObj });
       socket.leave(roomName);
     },
   );

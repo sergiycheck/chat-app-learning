@@ -49,8 +49,9 @@ export default function LoginChatForm() {
   }, [isSuccess, resp, socketClientWithData, setCurrentUser]);
 
   return (
-    <StyledChat>
+    <StyledChat className="row">
       <form
+        className="col-12 row"
         autoComplete="off"
         onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
@@ -59,15 +60,20 @@ export default function LoginChatForm() {
           setInputVal("");
         }}
       >
-        <input
-          value={inputVal}
-          onChange={(e) => setInputVal(e.currentTarget.value)}
-          type="text"
-          name="username"
-        />
-        <Button type="submit" disabled={!inputVal}>
-          sign in{" "}
-        </Button>
+        <div className="col">
+          <input
+            className="form-control"
+            value={inputVal}
+            onChange={(e) => setInputVal(e.currentTarget.value)}
+            type="text"
+            name="username"
+          />
+        </div>
+        <div className="col-auto">
+          <Button className="btn" type="submit" disabled={!inputVal}>
+            sign in{" "}
+          </Button>
+        </div>
       </form>
       {isLoading && <div>singing in...</div>}
       {isError && <div>An error occurred: {error.message}</div>}
