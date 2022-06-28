@@ -9,7 +9,9 @@ import { UserData, MessageWithRelations } from "../types";
 import { rooms, SocketEventsTypes } from "./socket.data";
 import { useBeforeUnload } from "./useBeforeUnload.hook";
 
-export function transformArrayToNormStateObj<TData extends { id: string }>(itemsArr: Array<TData>) {
+export function transformArrayToNormStateObj<TData extends { id: string }>(
+  itemsArr: Array<TData>
+) {
   const stateBuilder = (stateToBuild: GenericDataNorm<TData>) => {
     return (userData: TData) => {
       stateToBuild[userData.id] = userData;
@@ -74,6 +76,7 @@ export const useChatWithReactQuerySubscription = () => {
       socketRef.current?.off(SocketEventsTypes.disconnect);
     };
   };
+  // eslint-disable-next-line
   React.useEffect(connectionSocketHandlers, []);
 
   const sendCallUpdateUser = React.useRef(false);
@@ -84,34 +87,50 @@ export const useChatWithReactQuerySubscription = () => {
       const socketId = socketRef.current?.id;
       const data = { userId, socketId };
       //
-      socketRef.current?.emit(SocketEventsTypes.chat_update_user, data, (response: any) => {
-        const { userData } = response as { userData: UserData };
-        socketClientWithData.setCurrentUser(userData);
-      });
+      socketRef.current?.emit(
+        SocketEventsTypes.chat_update_user,
+        data,
+        (response: any) => {
+          const { userData } = response as { userData: UserData };
+          socketClientWithData.setCurrentUser(userData);
+        }
+      );
 
       //
       sendCallUpdateUser.current = true;
     }
   };
-  React.useEffect(updateUserEffectHandler, [socketMounted, socketClientWithData]);
+  React.useEffect(updateUserEffectHandler, [
+    socketMounted,
+    socketClientWithData,
+  ]);
 
   const chatInteractionEffectHandler = () => {
     function updateMessages(msg: MessageWithRelations) {
       queryClient.setQueriesData(["messages"], (updaterOldData) => {
-        const oldData = updaterOldData as unknown as GenericDataNorm<MessageWithRelations>;
+        const oldData =
+          updaterOldData as unknown as GenericDataNorm<MessageWithRelations>;
         const result = { ...oldData, [msg.id]: msg };
         return result;
       });
     }
 
-    function messageHandler({ messageWithUser }: { messageWithUser: MessageWithRelations }) {
+    function messageHandler({
+      messageWithUser,
+    }: {
+      messageWithUser: MessageWithRelations;
+    }) {
       console.log("message get", messageWithUser);
       updateMessages(messageWithUser);
     }
 
     socketRef.current?.on(SocketEventsTypes.chat_message_get, messageHandler);
 
-    function userEnterGetSentUsers({ usersDataArr }: { usersDataArr: Array<UserData> }) {
+    function userEnterGetSentUsers({
+      usersDataArr,
+    }: {
+      usersDataArr: Array<UserData>;
+    }) {
       console.log("got data on user enter", usersDataArr);
 
       const stateToSet = transformArrayToNormStateObj(usersDataArr);
@@ -122,7 +141,10 @@ export const useChatWithReactQuerySubscription = () => {
       }));
     }
 
-    socketRef.current?.on(SocketEventsTypes.user_enter_send_users, userEnterGetSentUsers);
+    socketRef.current?.on(
+      SocketEventsTypes.user_enter_send_users,
+      userEnterGetSentUsers
+    );
 
     function otherUserLeaveChatHandler({
       messageWithUser,
@@ -140,9 +162,14 @@ export const useChatWithReactQuerySubscription = () => {
       updateMessages(messageWithUser);
     }
 
-    socketRef.current?.on(SocketEventsTypes.other_user_leave_room, otherUserLeaveChatHandler);
+    socketRef.current?.on(
+      SocketEventsTypes.other_user_leave_room,
+      otherUserLeaveChatHandler
+    );
 
-    function otherUserLeaveRoomUpdateActiveUsers(data: { objectIdUserId: string }) {
+    function otherUserLeaveRoomUpdateActiveUsers(data: {
+      objectIdUserId: string;
+    }) {
       const { objectIdUserId } = data;
       socketClientWithData.setUsersNormData((pUserData) => {
         if (socketClientWithData.usersNormData) {
@@ -166,29 +193,45 @@ export const useChatWithReactQuerySubscription = () => {
     const messageDeleteResponseHandler = (data: { messageId: string }) => {
       const { messageId } = data;
       queryClient.setQueriesData(["messages"], (updaterOldData) => {
-        const oldData = updaterOldData as unknown as GenericDataNorm<MessageWithRelations>;
+        const oldData =
+          updaterOldData as unknown as GenericDataNorm<MessageWithRelations>;
         const newData = { ...oldData };
         delete newData[messageId];
         return newData;
       });
     };
 
-    socketRef.current?.on(SocketEventsTypes.chat_msg_del_res, messageDeleteResponseHandler);
+    socketRef.current?.on(
+      SocketEventsTypes.chat_msg_del_res,
+      messageDeleteResponseHandler
+    );
 
     return () => {
       //
-      socketRef.current?.off(SocketEventsTypes.chat_message_get, messageHandler);
+      socketRef.current?.off(
+        SocketEventsTypes.chat_message_get,
+        messageHandler
+      );
       //
-      socketRef.current?.off(SocketEventsTypes.user_enter_send_users, userEnterGetSentUsers);
+      socketRef.current?.off(
+        SocketEventsTypes.user_enter_send_users,
+        userEnterGetSentUsers
+      );
       //
-      socketRef.current?.off(SocketEventsTypes.other_user_leave_room, otherUserLeaveChatHandler);
+      socketRef.current?.off(
+        SocketEventsTypes.other_user_leave_room,
+        otherUserLeaveChatHandler
+      );
       //
       socketRef.current?.off(
         SocketEventsTypes.other_user_leave_room_update_active_users,
         otherUserLeaveRoomUpdateActiveUsers
       );
       //
-      socketRef.current?.off(SocketEventsTypes.chat_msg_del_res, messageDeleteResponseHandler);
+      socketRef.current?.off(
+        SocketEventsTypes.chat_msg_del_res,
+        messageDeleteResponseHandler
+      );
     };
   };
 

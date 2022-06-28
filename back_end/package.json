@@ -4,9 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "tsc -p tsconfig.build.json",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "start:dev": "export NODE_ENV=dev&& nodemon ./src/index.ts",
+    "start:prod": "export NODE_ENV=prod&& node dist",
     "start:debug": "set DEBUG=*&nodemon ./src/index.ts",
-    "start": "nodemon ./src/index.ts"
+    "start:prod_doc": "node dist"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +28,7 @@
     "express": "^4.18.1",
     "mongoose": "^6.3.2",
     "morgan": "^1.10.0",
+    "rimraf": "^3.0.2",
     "socket.io": "^4.5.0"
   }
 }

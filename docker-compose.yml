@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  react-chat-app-nginx:
+    build:
+      context: ./front_end
+    ports:
+      - 3030:3000
+    environment:
+      - GENERATE_SOURCEMAP=false
+    restart: always
+    depends_on:
+      - back-end-chat-app
+
+  back-end-chat-app:
+    build:
+      context: ./back_end
+    ports:
+      - 3020:3020
+    env_file:
+      - ./back_end/conn.env
+    environment:
+      - PORT=3020
+      - FRONT_END_CORS_HOST=localhost
+      - FRONT_END_CORS_PORT=3030
+      - NODE_ENV=prod
+    restart: always
+    command: sh -c './entr.sh'
